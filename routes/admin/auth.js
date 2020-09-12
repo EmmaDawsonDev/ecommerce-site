@@ -1,9 +1,10 @@
 const express = require("express");
+const {check, validationResult} = require("express-validator");
 
 const usersRepo = require("../../repositories/users");
 const signupTemplate = require("../../views/admin/auth/signup");
 const signinTemplate = require("../../views/admin/auth/signin");
-
+const {requireEmail, requirePassword, requirePasswordConf} = require("./validators");
 
 //Sub-router to link up to app in index.js
 const router = express.Router();
@@ -16,16 +17,22 @@ router.get("/signup", (req, res) => {
 
 
 //Handle incoming POST requests from the browser
-router.post("/signup", async (req, res) => {
- const {email, password, passwordConfirmation} = req.body;
-const existingUser = await usersRepo.getOneBy({email});
-  if (existingUser) {
-    return res.send("This email already exists");
+router.post("/signup", [
+  requireEmail,
+  requirePassword,
+  requirePasswordConf
+], 
+async (req, res) => {
+  const errors = validationResult(req);
+  
+  if(!errors.isEmpty()) {
+    return res.send(signupTemplate({ req, errors}));
   }
 
-  if (password !== passwordConfirmation) {
-    return res.send("Passwords must match");
-  }
+ const {email, password, passwordConfirmation} = req.body;
+
+
+  
 
   const user = await usersRepo.create({email, password});
 
