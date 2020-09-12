@@ -2,12 +2,21 @@ const {check} = require("express-validator");
 const usersRepo = require("../../repositories/users");
 
 module.exports = {
+  requireTitle: check("title")
+    .trim()
+    .isLength({min: 5, max: 40})
+    .withMessage("Please provide a title"),
+  requirePrice: check("price")
+    .trim()
+    .toFloat()
+    .isFloat({min: 1})
+    .withMessage("Please provide a valid price"),
   requireEmail: check("email")
-  .trim()
-  .normalizeEmail()
-  .isEmail()
-  .withMessage("Must be a valid email")
-  .custom(async(email) => {
+    .trim()
+    .normalizeEmail()
+    .isEmail()
+    .withMessage("Must be a valid email")
+    .custom(async(email) => {
   const existingUser = await usersRepo.getOneBy({email});
   if (existingUser) {
     throw new Error("Email in use");
