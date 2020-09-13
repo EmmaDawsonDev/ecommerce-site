@@ -25,6 +25,7 @@ module.exports = ({ errors }) => {
           </div>
         </div>
       </div>
+    
     `
   });
 };
