@@ -3,25 +3,32 @@ const { requireValidPasswordForUser, requireEmail } = require("./validators");
 const express = require("express");
 const multer = require("multer");
 
-const {handleErrors} = require("./middlewares");
+const {handleErrors, requireAuth} = require("./middlewares");
 const productsRepo = require("../../repositories/products");
 const productsNewTemplate = require("../../views/admin/products/new");
+const productsIndexTemplate = require("../../views/admin/products/index");
+const productsEditTemplate = require("../../views/admin/products/edit");
 const {requireTitle, requirePrice} = require("./validators");
 
 const router = express.Router();
 const upload = multer({storage: multer.memoryStorage()});
 
-router.get("/admin/products", (req, res) => {
+router.get("/admin/products", requireAuth, async (req, res) => {
 
+
+  const products = await productsRepo.getAll();
+  res.send(productsIndexTemplate({products}));
 });
 
 //Create new products
-router.get("/admin/products/new", (req, res) => {
+router.get("/admin/products/new", requireAuth, (req, res) => {
+ 
  res.send(productsNewTemplate({}));
 });
 
 //Submit new products
-router.post("/admin/products/new", 
+router.post("/admin/products/new",
+requireAuth, 
 upload.single("image"),
 [
 requireTitle,
@@ -29,11 +36,52 @@ requirePrice
 ], 
 handleErrors(productsNewTemplate),
 async (req, res) => {
+  
   const image = req.file.buffer.toString("base64");
   const {title, price} = req.body;
   await productsRepo.create({title, price, image})
 
-res.send("submitted");
+res.redirect("/admin/products");
+});
+
+//Edit individual products
+router.get("/admin/products/:id/edit", requireAuth, async (req, res) => {
+  const product = await productsRepo.getOne(req.params.id);
+  if (!product) {
+    return res.send("product not found");
+    }
+    res.send(productsEditTemplate({product}));
+});
+
+//Submit edited products
+router.post("/admin/products/:id/edit", 
+requireAuth,
+upload.single("image"),
+[requireTitle, requirePrice],
+handleErrors(productsEditTemplate, async (req) => {
+const product = await productsRepo.getOne(req.params.id);
+return {product};
+}),
+async (req, res) => {
+  const changes = req.body;
+  if (req.file) {
+    changes.image = req.file.buffuer.toString("base64");
+  }
+  try {
+    await productsRepo.update(req.params.id, changes)
+  } catch (err) {
+    return res.send("Could not find item");
+  }
+
+  res.redirect("/admin/products");
+  
+});
+
+//Deleting products from edit page
+router.post("/admin/products/:id/delete", requireAuth, async (req, res) => {
+await productsRepo.delete(req.params.id);
+
+res.redirect("/admin/products");
 });
 
 module.exports = router;
